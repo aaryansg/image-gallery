@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom'; // Remove Link import
 import Header from '../components/Layout/Header';
 import ImageUpload from '../components/ImageUpload';
 import axios from 'axios';
@@ -59,6 +59,7 @@ const DashboardPage = () => {
         <div className="dashboard-header">
           <h1>Dashboard</h1>
           <p>Welcome, {currentUser?.full_name}! (Role: {currentUser?.role})</p>
+          {/* REMOVE THE VIEW GALLERY BUTTON FROM HERE */}
         </div>
 
         <ImageUpload onUploadSuccess={handleUploadSuccess} />

@@ -46,6 +46,7 @@ class Image(ImageBase):
     height: int
     uploaded_by: int
     uploaded_at: datetime
+    exif_data: Optional[dict] = None
 
     class Config:
         from_attributes = True

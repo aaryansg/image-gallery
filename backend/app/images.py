@@ -9,6 +9,8 @@ from . import models, schemas
 from .database import get_db
 from .auth import get_current_user
 from .s3_client import s3_client
+import exifread
+import json
 
 # Make sure the router is defined
 router = APIRouter()
@@ -33,6 +35,20 @@ async def upload_image(
         contents = await file.read()
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
+        
+        # EXTRACT METADATA
+        exif_data = {}
+        try:
+            # Reset file pointer for exifread
+            file_buffer = io.BytesIO(contents)
+            tags = exifread.process_file(file_buffer)
+            
+            # Convert EXIF data to JSON-serializable format
+            for tag, value in tags.items():
+                exif_data[tag] = str(value)
+        except Exception as e:
+            print(f"Could not extract EXIF data: {e}")
+            # Continue even if EXIF extraction fails
         
         # Generate unique filenames
         file_ext = os.path.splitext(file.filename)[1].lower()
@@ -79,7 +95,7 @@ async def upload_image(
         original_url = s3_client.get_file_url(unique_filename)
         thumbnail_url = s3_client.get_file_url(thumbnail_filename)
         
-        # Create database record
+        # Create database record - ADD EXIF_DATA HERE
         db_image = models.Image(
             filename=unique_filename,
             original_filename=file.filename,
@@ -92,6 +108,7 @@ async def upload_image(
             title=title,
             caption=caption,
             alt_text=alt_text,
+            exif_data=exif_data,  # Store extracted EXIF data
             privacy=privacy,
             uploaded_by=current_user.id
         )
@@ -124,3 +141,52 @@ def get_images(
         models.Image.uploaded_by == current_user.id
     ).offset(skip).limit(limit).all()
     return images
+
+@router.get("/images/search", response_model=List[schemas.Image])
+def search_images(
+    keyword: str = None,
+    camera_model: str = None,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """
+    Search images by EXIF data or other metadata
+    """
+    query = db.query(models.Image).filter(
+        models.Image.uploaded_by == current_user.id
+    )
+    
+    if keyword:
+        query = query.filter(
+            (models.Image.title.contains(keyword)) |
+            (models.Image.caption.contains(keyword)) |
+            (models.Image.alt_text.contains(keyword))
+        )
+    
+    if camera_model:
+        # Search in EXIF data for camera model
+        query = query.filter(
+            models.Image.exif_data.contains({"EXIF Model": camera_model})
+        )
+    
+    images = query.all()
+    return images
+
+@router.get("/images/{image_id}/exif")
+def get_image_exif(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """
+    Get EXIF data for a specific image
+    """
+    image = db.query(models.Image).filter(
+        models.Image.id == image_id,
+        models.Image.uploaded_by == current_user.id
+    ).first()
+    
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    return image.exif_data
