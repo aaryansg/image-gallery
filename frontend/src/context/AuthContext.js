@@ -1,5 +1,10 @@
+// [file name]: AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
+
+// In AuthContext.js, add this at the top after imports
+console.log('API_BASE_URL:', API_BASE_URL);
 
 const AuthContext = createContext();
 
@@ -11,12 +16,10 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Set up axios defaults and check for existing token
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token is still valid
       verifyToken(token);
     } else {
       setLoading(false);
@@ -25,10 +28,11 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async (token) => {
     try {
-      const response = await axios.get('http://localhost:8000/users/me');
+      const response = await axios.get(`${API_BASE_URL}/users/me`, {
+        headers: getAuthHeaders()
+      });
       setCurrentUser(response.data);
     } catch (error) {
-      // Token is invalid, clear it
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
     } finally {
@@ -38,7 +42,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/login', {
+      const response = await axios.post(`${API_BASE_URL}/login`, {
         email,
         password
       });
@@ -47,8 +51,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', access_token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
-      // Get user info
-      const userResponse = await axios.get('http://localhost:8000/users/me');
+      const userResponse = await axios.get(`${API_BASE_URL}/users/me`, {
+        headers: getAuthHeaders()
+      });
       setCurrentUser(userResponse.data);
       
       return { success: true };
@@ -62,7 +67,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('http://localhost:8000/register', userData);
+      const response = await axios.post(`${API_BASE_URL}/register`, userData);
       return { success: true, data: response.data };
     } catch (error) {
       return { 

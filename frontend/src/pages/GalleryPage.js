@@ -7,6 +7,7 @@ import Header from '../components/Layout/Header';
 import ImageModal from '../components/ImageModal';
 import axios from 'axios';
 import './GalleryPage.css';
+import { API_BASE_URL, getAuthHeaders, getAuthHeadersMultipart } from '../config/api';
 
 const GalleryPage = () => {
   const { currentUser, loading: authLoading } = useAuth();
@@ -31,10 +32,8 @@ const GalleryPage = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/api/images', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get(`${API_BASE_URL}/api/images`, { // Updated
+        headers: getAuthHeaders() // Use the helper function
       });
       setImages(response.data);
       setFilteredImages(response.data);
@@ -63,16 +62,12 @@ const GalleryPage = () => {
       let response;
 
       if (searchType === 'camera') {
-        response = await axios.get(`http://localhost:8000/api/images/search?camera_model=${encodeURIComponent(searchTerm)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        response = await axios.get(`${API_BASE_URL}/api/images/search?camera_model=${encodeURIComponent(searchTerm)}`, { // Updated
+          headers: getAuthHeaders() // Use the helper function
         });
       } else if (searchType === 'all') {
-        response = await axios.get(`http://localhost:8000/api/images/search?keyword=${encodeURIComponent(searchTerm)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        response = await axios.get(`${API_BASE_URL}/api/images/search?keyword=${encodeURIComponent(searchTerm)}`, { // Updated
+          headers: getAuthHeaders() // Use the helper function
         });
       } else {
         const filtered = images.filter(image => {
@@ -126,11 +121,8 @@ const GalleryPage = () => {
       formData.append('privacy', selectedImage.privacy || 'public');
       
       const token = localStorage.getItem('token');
-      const uploadResponse = await axios.post('http://localhost:8000/api/upload', formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
+      const uploadResponse = await axios.post(`${API_BASE_URL}/api/upload`, formData, { // Updated
+        headers: getAuthHeadersMultipart() // Use the multipart helper function
       });
       
       if (uploadResponse.data.success) {

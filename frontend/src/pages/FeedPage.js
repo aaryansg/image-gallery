@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Layout/Header';
 import axios from 'axios';
 import './FeedPage.css';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
 
 const FeedPage = () => {
   const { currentUser, loading: authLoading } = useAuth();
@@ -25,10 +26,8 @@ const FeedPage = () => {
   const fetchPublicImages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/api/feed', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get(`${API_BASE_URL}/api/feed`, { // Updated
+        headers: getAuthHeaders() // Use the helper function
       });
       setPublicImages(response.data);
       setError('');
@@ -49,10 +48,8 @@ const FeedPage = () => {
   const handleLike = async (imageId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`http://localhost:8000/api/images/${imageId}/like`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/like`, {}, { // Updated
+        headers: getAuthHeaders() // Use the helper function
       });
       
       if (response.data.success) {
@@ -83,13 +80,10 @@ const FeedPage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`http://localhost:8000/api/images/${imageId}/comment`, {
+      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/comment`, { // Updated
         content: commentContent
       }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders() // Use the helper function
       });
       
       if (response.data) {

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Layout/Header';
 import ImageUpload from '../components/ImageUpload';
 import axios from 'axios';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
 
 const DashboardPage = () => {
   const { currentUser, logout, loading: authLoading } = useAuth();
@@ -22,11 +23,10 @@ const DashboardPage = () => {
   const fetchImages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/api/images', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get(`${API_BASE_URL}/api/images`, { // Updated
+        headers: getAuthHeaders() // Use the helper function
       });
+
       setImages(response.data);
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -54,10 +54,8 @@ const DashboardPage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.delete(`http://localhost:8000/api/images/${imageId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.delete(`${API_BASE_URL}/api/images/${imageId}`, { // Updated
+        headers: getAuthHeaders() // Use the helper function
       });
       
       if (response.data.success) {

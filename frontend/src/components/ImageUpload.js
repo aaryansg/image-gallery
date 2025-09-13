@@ -2,6 +2,7 @@
 // [file content begin]
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
+import { API_BASE_URL, getAuthHeadersMultipart } from '../config/api';
 
 const ImageUpload = ({ onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -60,11 +61,8 @@ const ImageUpload = ({ onUploadSuccess }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/api/upload', formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await axios.post(`${API_BASE_URL}/api/upload`, formData, { // Updated
+        headers: getAuthHeadersMultipart(), // Use the multipart helper function
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total
