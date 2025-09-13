@@ -1,19 +1,64 @@
+# [file name]: images.py
+# [file content begin]
 import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from PIL import Image as PILImage
 import io
 from typing import List
 from . import models, schemas
 from .database import get_db
 from .auth import get_current_user
-from .s3_client import s3_client
+from .cloudinary_client import cloudinary_client
 
-# Make sure the router is defined
+# Make sure the router is defined at the top level
 router = APIRouter()
 
-# This endpoint should be at /api/upload (because of the prefix)
+# Helper function to add like and comment counts to image
+def add_image_counts(image, current_user_id=None):
+    """Add like_count, is_liked, and comment_count to image object"""
+    image_dict = {c.name: getattr(image, c.name) for c in image.__table__.columns}
+    
+    # Add like count
+    image_dict['like_count'] = len(image.likes)
+    
+    # Add is_liked status if user is provided
+    if current_user_id:
+        image_dict['is_liked'] = any(like.user_id == current_user_id for like in image.likes)
+    else:
+        image_dict['is_liked'] = False
+        
+    # Add comment count
+    image_dict['comment_count'] = len(image.comments)
+    
+    # Add owner information if available
+    if hasattr(image, 'owner') and image.owner:
+        image_dict['owner'] = image.owner
+    
+    # Add comments if available
+    if hasattr(image, 'comments') and image.comments:
+        image_dict['comments'] = image.comments
+    
+    return image_dict
+
+# Your endpoints here...
+@router.get("/images", response_model=List[schemas.Image])
+def get_images(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    images = db.query(models.Image).filter(
+        models.Image.uploaded_by == current_user.id
+    ).offset(skip).limit(limit).all()
+    
+    # Add like and comment counts using our helper function
+    images_with_counts = [add_image_counts(image, current_user.id) for image in images]
+    
+    return images_with_counts
+
 @router.post("/upload", response_model=schemas.ImageUploadResponse)
 async def upload_image(
     file: UploadFile = File(...),
@@ -25,6 +70,8 @@ async def upload_image(
     current_user: schemas.User = Depends(get_current_user)
 ):
     try:
+        print(f"📤 Starting upload for user {current_user.id}")
+        
         # Validate file type
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
@@ -34,54 +81,56 @@ async def upload_image(
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
         
-        # Generate unique filenames
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        thumbnail_filename = f"{uuid.uuid4()}.webp"
+        print(f"📁 File received: {file.filename}, size: {len(contents)} bytes")
         
-        # Get image dimensions and create thumbnail
+        # Generate unique public IDs
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        original_public_id = f"images/{uuid.uuid4()}{file_ext}"
+        thumbnail_public_id = f"thumbnails/{uuid.uuid4()}"
+        
+        # Get image dimensions
         with PILImage.open(io.BytesIO(contents)) as img:
             width, height = img.size
+            print(f"📐 Image dimensions: {width}x{height}")
             
             # Create thumbnail
-            img.thumbnail((300, 300))
-            thumb_buffer = io.BytesIO()
-            
-            # Handle different image modes
-            if img.mode in ('RGBA', 'LA', 'P'):
-                img = img.convert('RGB')
-                img.save(thumb_buffer, format="JPEG")
-            else:
-                img.save(thumb_buffer, format="WEBP")
-            
-            thumb_buffer.seek(0)
-            thumbnail_data = thumb_buffer.getvalue()
+            thumbnail_data = cloudinary_client.generate_thumbnail(contents)
+            if not thumbnail_data:
+                raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
         
-        # Upload original image to S3
-        original_uploaded = s3_client.upload_file(
+        # Upload original image to Cloudinary
+        print("☁️ Uploading original to Cloudinary...")
+        original_result = cloudinary_client.upload_image(
             io.BytesIO(contents).getvalue(),
-            unique_filename,
-            file.content_type
+            original_public_id
         )
         
-        # Upload thumbnail to S3
-        thumbnail_content_type = "image/jpeg" if img.mode == 'RGB' else "image/webp"
-        thumbnail_uploaded = s3_client.upload_file(
+        if not original_result:
+            raise HTTPException(status_code=500, detail="Failed to upload original to Cloudinary")
+        
+        print(f"✅ Original uploaded: {original_result['secure_url']}")
+        
+        # Upload thumbnail to Cloudinary
+        print("☁️ Uploading thumbnail to Cloudinary...")
+        thumbnail_result = cloudinary_client.upload_image(
             thumbnail_data,
-            thumbnail_filename,
-            thumbnail_content_type
+            thumbnail_public_id
         )
         
-        if not original_uploaded or not thumbnail_uploaded:
-            raise HTTPException(status_code=500, detail="Failed to upload to storage")
+        if not thumbnail_result:
+            # Try to delete the original if thumbnail fails
+            cloudinary_client.delete_image(original_public_id)
+            raise HTTPException(status_code=500, detail="Failed to upload thumbnail to Cloudinary")
+        
+        print(f"✅ Thumbnail uploaded: {thumbnail_result['secure_url']}")
         
         # Get URLs
-        original_url = s3_client.get_file_url(unique_filename)
-        thumbnail_url = s3_client.get_file_url(thumbnail_filename)
+        original_url = original_result['secure_url']
+        thumbnail_url = thumbnail_result['secure_url']
         
         # Create database record
         db_image = models.Image(
-            filename=unique_filename,
+            filename=original_public_id,
             original_filename=file.filename,
             file_path=original_url,
             thumbnail_path=thumbnail_url,
@@ -100,27 +149,153 @@ async def upload_image(
         db.commit()
         db.refresh(db_image)
         
+        print("💾 Database record created successfully")
+        
+        # Convert to dict with counts
+        image_response = add_image_counts(db_image, current_user.id)
+        
         return {
             "success": True,
-            "message": "Image uploaded successfully to AWS S3",
-            "image": db_image
+            "message": "Image uploaded successfully to Cloudinary",
+            "image": image_response
         }
+        
+    except HTTPException as he:
+        print(f"❌ HTTP Exception: {he.detail}")
+        raise he
+    except Exception as e:
+        print(f"❌ Unexpected error in upload_image: {str(e)}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+@router.delete("/images/{image_id}")
+def delete_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """
+    Delete an image and its thumbnail from Cloudinary and database
+    """
+    try:
+        # Find the image
+        image = db.query(models.Image).filter(
+            models.Image.id == image_id,
+            models.Image.uploaded_by == current_user.id
+        ).first()
+        
+        if not image:
+            raise HTTPException(status_code=404, detail="Image not found")
+        
+        # Delete from Cloudinary
+        try:
+            # Extract public_id from stored filename
+            original_deleted = cloudinary_client.delete_image(image.filename)
+            # For thumbnail, we need to reconstruct the public_id pattern
+            # This assumes thumbnails are stored with the same public_id pattern
+            # You might need to adjust this based on your naming convention
+            thumbnail_public_id = image.filename.replace('images/', 'thumbnails/')
+            thumbnail_deleted = cloudinary_client.delete_image(thumbnail_public_id)
+            
+            if not original_deleted or not thumbnail_deleted:
+                print("⚠️ Warning: Could not delete images from Cloudinary")
+        except Exception as cloudinary_error:
+            print(f"⚠️ Cloudinary deletion error: {cloudinary_error}")
+            # Continue with database deletion even if Cloudinary deletion fails
+        
+        # Delete from database
+        db.delete(image)
+        db.commit()
+        
+        return {"success": True, "message": "Image deleted successfully"}
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+        db.rollback()
+        print(f"Error deleting image: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting image: {str(e)}")
 
-# This endpoint should be at /api/images (because of the prefix)
-@router.get("/images", response_model=List[schemas.Image])
-def get_images(
+# NEW ENDPOINTS FOR FEED, LIKES, AND COMMENTS
+@router.get("/feed", response_model=List[schemas.PublicImage])
+def get_public_feed(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_user)
 ):
+    """Get public images from all users"""
     images = db.query(models.Image).filter(
-        models.Image.uploaded_by == current_user.id
+        models.Image.privacy == "public"
+    ).options(
+        joinedload(models.Image.owner),
+        joinedload(models.Image.comments).joinedload(models.Comment.user)
     ).offset(skip).limit(limit).all()
-    return images
+    
+    # Convert to dict with counts using our helper function
+    images_with_counts = [add_image_counts(image, current_user.id) for image in images]
+    
+    return images_with_counts
+
+@router.post("/images/{image_id}/like")
+def toggle_like(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """Like or unlike an image"""
+    image = db.query(models.Image).filter(models.Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Check if user already liked this image
+    existing_like = db.query(models.Like).filter(
+        models.Like.user_id == current_user.id,
+        models.Like.image_id == image_id
+    ).first()
+    
+    if existing_like:
+        # Unlike the image
+        db.delete(existing_like)
+        db.commit()
+        return {"success": True, "liked": False}
+    else:
+        # Like the image
+        new_like = models.Like(user_id=current_user.id, image_id=image_id)
+        db.add(new_like)
+        db.commit()
+        return {"success": True, "liked": True}
+
+@router.post("/images/{image_id}/comment", response_model=schemas.Comment)
+def add_comment(
+    image_id: int,
+    comment: schemas.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """Add a comment to an image"""
+    image = db.query(models.Image).filter(models.Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Validate comment content
+    if not comment.content or not comment.content.strip():
+        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+    
+    new_comment = models.Comment(
+        user_id=current_user.id,
+        image_id=image_id,
+        content=comment.content.strip()
+    )
+    
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    
+    # Load user information for the response
+    new_comment.user = current_user
+    
+    return new_comment
+# [file content end]

@@ -1,3 +1,5 @@
+# [file name]: models.py
+# [file content begin]
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -16,6 +18,9 @@ class User(Base):
     
     # Relationship to images
     images = relationship("Image", back_populates="owner")
+    # Relationships for likes and comments
+    likes = relationship("Like", back_populates="user")
+    comments = relationship("Comment", back_populates="user")
 
 class Image(Base):
     __tablename__ = "images"
@@ -39,3 +44,31 @@ class Image(Base):
     
     # Relationships
     owner = relationship("User", back_populates="images")
+    likes = relationship("Like", back_populates="image", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="image", cascade="all, delete-orphan")
+
+class Like(Base):
+    __tablename__ = "likes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    image_id = Column(Integer, ForeignKey("images.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="likes")
+    image = relationship("Image", back_populates="likes")
+
+class Comment(Base):
+    __tablename__ = "comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    image_id = Column(Integer, ForeignKey("images.id"))
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="comments")
+    image = relationship("Image", back_populates="comments")
+# [file content end]

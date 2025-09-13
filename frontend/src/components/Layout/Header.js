@@ -1,42 +1,55 @@
+// [file name]: Header.js
+// [file content begin]
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import './Header.css';
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
-    <header style={{
-      padding: '1rem 0',
-      backgroundColor: 'var(--bg-secondary)',
-      borderBottom: '1px solid var(--bg-tertiary)'
-    }}>
+    <header className="header">
       <div className="container">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <Link to="/" style={{
-            color: 'var(--accent)',
-            textDecoration: 'none',
-            fontSize: '1.5rem',
-            fontWeight: 'bold'
-          }}>
-            Image Gallery
+        <div className="header-content">
+          <Link to="/" className="logo">
+            📸 Image Gallery
           </Link>
           
-          <nav>
+          <nav className="nav">
             {currentUser ? (
-              <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-                <Link to="/dashboard" className="link">Dashboard</Link>
-                <button onClick={logout} className="btn btn-primary">Logout</button>
-              </div>
+              <>
+                <Link to="/dashboard" className="nav-link">
+                  Dashboard
+                </Link>
+                <Link to="/gallery" className="nav-link">
+                  Gallery
+                </Link>
+                <Link to="/feed" className="nav-link"> {/* Add this link */}
+                  Feed
+                </Link>
+                <span className="nav-user">
+                  Welcome, {currentUser.full_name}
+                </span>
+                <button onClick={handleLogout} className="nav-link logout-btn">
+                  Logout
+                </button>
+              </>
             ) : (
-              <div style={{display: 'flex', gap: '1rem'}}>
-                <Link to="/login" className="link">Login</Link>
-                <Link to="/register" className="link">Register</Link>
-              </div>
+              <>
+                <Link to="/login" className="nav-link">
+                  Login
+                </Link>
+                <Link to="/register" className="nav-link">
+                  Register
+                </Link>
+              </>
             )}
           </nav>
         </div>
@@ -46,3 +59,4 @@ const Header = () => {
 };
 
 export default Header;
+// [file content end]

@@ -1,3 +1,5 @@
+# [file name]: main.py
+# [file content begin]
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -11,13 +13,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Image Gallery API", version="0.1.0")
 
-# CORS middleware
+# CORS middleware - UPDATED CONFIGURATION
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]  # Added this line
 )
 
 @app.get("/")
@@ -41,3 +44,4 @@ def read_users_me(current_user: schemas.User = Depends(auth.get_current_user)):
 
 # Make sure this line is at the end and uses the correct router variable
 app.include_router(images_router, prefix="/api", tags=["images"])
+# [file content end]

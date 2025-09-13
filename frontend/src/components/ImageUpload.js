@@ -1,204 +1,207 @@
+// [file name]: ImageUpload.js
+// [file content begin]
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 
 const ImageUpload = ({ onUploadSuccess }) => {
-  const [dragging, setDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [imageData, setImageData] = useState({
-    title: '',
-    caption: '',
-    alt_text: '',
-    privacy: 'public'
-  });
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [title, setTitle] = useState('');
+  const [caption, setCaption] = useState('');
+  const [altText, setAltText] = useState('');
+  const [privacy, setPrivacy] = useState('public'); // Add privacy state
   const fileInputRef = useRef(null);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleFileSelect = (file) => {
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
     if (file && file.type.startsWith('image/')) {
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
-      
-      // Set default title from filename
-      const filename = file.name.split('.')[0];
-      setImageData(prev => ({
-        ...prev,
-        title: filename,
-        alt_text: filename
-      }));
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setImageData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.add('dragover');
   };
 
-  const handleUpload = async () => {
-  if (!selectedFile) return;
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove('dragover');
+  };
 
-  setUploading(true);
-  const formData = new FormData();
-  formData.append('file', selectedFile);
-  formData.append('title', imageData.title || '');
-  formData.append('caption', imageData.caption || '');
-  formData.append('alt_text', imageData.alt_text || '');
-  formData.append('privacy', imageData.privacy);
-
-  try {
-    const response = await axios.post('http://localhost:8000/api/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    if (response.data.success) {
-      alert('Image uploaded successfully!');
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setImageData({
-        title: '',
-        caption: '',
-        alt_text: '',
-        privacy: 'public'
-      });
-      
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      if (onUploadSuccess) {
-        onUploadSuccess();
-      }
-    } else {
-      alert('Upload failed: ' + response.data.message);
-    }
-  } catch (error) {
-    console.error('Upload error:', error);
+  const handleDrop = (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove('dragover');
     
-    if (error.response?.status === 401) {
-      alert('Session expired. Please login again.');
-      // You might want to redirect to login here or trigger logout
-    } else if (error.response?.data?.detail) {
-      alert('Error uploading image: ' + error.response.data.detail);
-    } else if (error.message) {
-      alert('Error uploading image: ' + error.message);
-    } else {
-      alert('Error uploading image. Please try again.');
+    const files = event.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('image/')) {
+      setSelectedFile(files[0]);
+      setPreviewUrl(URL.createObjectURL(files[0]));
     }
-  } finally {
-    setUploading(false);
-  }
-};
+  };
+
+  const handleUpload = async (event) => {
+    event.preventDefault();
+    
+    if (!selectedFile) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('title', title);
+    formData.append('caption', caption);
+    formData.append('alt_text', altText);
+    formData.append('privacy', privacy); // Add privacy to form data
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://localhost:8000/api/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      if (response.data.success) {
+        alert('Upload successful!');
+        resetForm();
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Upload failed: ' + (error.response?.data?.detail || 'Unknown error'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedFile(null);
+    setPreviewUrl('');
+    setTitle('');
+    setCaption('');
+    setAltText('');
+    setPrivacy('public'); // Reset privacy to public
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="upload-section">
-      <h3>Upload Image</h3>
+      <h3>Upload New Image</h3>
       
       <div
-        className={`upload-area ${dragging ? 'dragover' : ''}`}
+        className="upload-area"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
         <input
-          type="file"
           ref={fileInputRef}
-          style={{ display: 'none' }}
+          type="file"
           accept="image/*"
-          onChange={(e) => handleFileSelect(e.target.files[0])}
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
         />
         
         {previewUrl ? (
           <img src={previewUrl} alt="Preview" className="upload-preview" />
         ) : (
           <div>
-            <p>Drag & drop an image here or click to browse</p>
-            <p>Supports: JPEG, PNG, WEBP, GIF</p>
+            <p>📁 Drag & drop an image here or click to browse</p>
+            <p><small>Supports JPG, PNG, WEBP, GIF</small></p>
           </div>
         )}
       </div>
 
-      {previewUrl && (
+      {selectedFile && (
         <div className="image-editor">
           <h4>Image Details</h4>
           
           <div className="form-group">
-            <label>Title</label>
+            <label>Title (optional)</label>
             <input
               type="text"
-              name="title"
-              value={imageData.title}
-              onChange={handleInputChange}
-              placeholder="Image title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter image title"
             />
           </div>
 
           <div className="form-group">
-            <label>Caption</label>
-            <textarea
-              name="caption"
-              value={imageData.caption}
-              onChange={handleInputChange}
-              placeholder="Image description"
-              rows="3"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Alt Text</label>
+            <label>Caption (optional)</label>
             <input
               type="text"
-              name="alt_text"
-              value={imageData.alt_text}
-              onChange={handleInputChange}
-              placeholder="Alternative text for accessibility"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Enter image caption"
             />
           </div>
 
           <div className="form-group">
-            <label>Privacy</label>
-            <select
-              name="privacy"
-              value={imageData.privacy}
-              onChange={handleInputChange}
+            <label>Alt Text (optional)</label>
+            <input
+              type="text"
+              value={altText}
+              onChange={(e) => setAltText(e.target.value)}
+              placeholder="Describe the image for accessibility"
+            />
+          </div>
+
+          {/* Privacy Settings */}
+          <div className="form-group">
+            <label>Privacy Settings</label>
+            <select 
+              value={privacy} 
+              onChange={(e) => setPrivacy(e.target.value)}
+              className="privacy-select"
             >
-              <option value="public">Public</option>
-              <option value="unlisted">Unlisted</option>
-              <option value="private">Private</option>
+              <option value="public">Public (Visible to everyone)</option>
+              <option value="unlisted">Unlisted (Only visible with link)</option>
+              <option value="private">Private (Only visible to you)</option>
             </select>
           </div>
 
-          <button 
-            onClick={handleUpload} 
-            disabled={uploading}
-            className="btn btn-primary"
-          >
-            {uploading ? 'Uploading...' : 'Upload Image'}
-          </button>
+          <div className="editor-controls">
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="btn btn-primary"
+            >
+              {uploading ? `Uploading... ${uploadProgress}%` : 'Upload Image'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={resetForm}
+              className="btn"
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+            >
+              Cancel
+            </button>
+          </div>
+
+          {uploading && (
+            <div style={{ marginTop: '1rem' }}>
+              <progress value={uploadProgress} max="100" style={{ width: '100%' }} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -206,3 +209,4 @@ const ImageUpload = ({ onUploadSuccess }) => {
 };
 
 export default ImageUpload;
+// [file content end]

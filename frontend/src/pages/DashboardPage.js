@@ -10,6 +10,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState({});
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -20,12 +21,16 @@ const DashboardPage = () => {
 
   const fetchImages = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/images');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:8000/api/images', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setImages(response.data);
     } catch (error) {
       console.error('Error fetching images:', error);
       if (error.response?.status === 401) {
-        // Token expired, logout
         logout();
         navigate('/login');
       }
@@ -40,8 +45,35 @@ const DashboardPage = () => {
     }
   }, [currentUser]);
 
+  const deleteImage = async (imageId) => {
+    if (!window.confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(prev => ({ ...prev, [imageId]: true }));
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(`http://localhost:8000/api/images/${imageId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setImages(prev => prev.filter(img => img.id !== imageId));
+      }
+      
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      alert('Failed to delete image. Please try again.');
+    } finally {
+      setDeleting(prev => ({ ...prev, [imageId]: false }));
+    }
+  };
+
   const handleUploadSuccess = () => {
-    fetchImages(); // Refresh images after upload
+    fetchImages();
   };
 
   if (authLoading) {
@@ -49,7 +81,7 @@ const DashboardPage = () => {
   }
 
   if (!currentUser) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
@@ -78,18 +110,32 @@ const DashboardPage = () => {
                     alt={image.alt_text || image.title}
                     className="image-thumbnail"
                     onError={(e) => {
-                      // Fallback to original image if thumbnail fails
                       e.target.src = image.file_path;
                     }}
                   />
                   <div className="image-info">
-                    <div className="image-title">{image.title}</div>
+                    <div className="image-title">{image.title || image.original_filename}</div>
                     <div className="image-meta">
                       {image.width}x{image.height} • {Math.round(image.file_size / 1024)}KB
                     </div>
                     <div className="image-meta">
                       <small>Stored in AWS S3</small>
                     </div>
+                    <button
+                      onClick={() => deleteImage(image.id)}
+                      disabled={deleting[image.id]}
+                      className="btn"
+                      style={{
+                        marginTop: '0.5rem',
+                        background: 'var(--error)',
+                        color: 'white',
+                        padding: '0.5rem',
+                        fontSize: '0.8rem',
+                        width: '100%'
+                      }}
+                    >
+                      {deleting[image.id] ? 'Deleting...' : '🗑️ Delete Image'}
+                    </button>
                   </div>
                 </div>
               ))}

@@ -1,0 +1,42 @@
+.cropper-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.cropper-content {
+  background-color: var(--bg-secondary);
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.cropper-container {
+  margin: 1rem 0;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.cropper-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.ReactCrop__crop-selection {
+  border: 2px solid var(--accent);
+}
+
+.ReactCrop__drag-handle::after {
+  background-color: var(--accent);
+}
