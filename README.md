@@ -1,3 +1,8 @@
+#Demo Video Link
+
+https://drive.google.com/file/d/1VOJeFKXPhxH56URjujo1RWYnq8l3SID3/view?usp=sharing
+
+
 # Image Gallery Application
 
 A full-stack web application for uploading, managing, and generating images with AI capabilities. Built with React frontend, FastAPI backend, PostgreSQL database, and Cloudinary for image storage.
@@ -79,12 +84,16 @@ DATABASE_URL=sqlite:///./image_gallery.db
 
 # JWT Authentication
 SECRET_KEY=your-super-secret-key-here
+
 ALGORITHM=HS256
+
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Cloudinary Configuration
 CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
+
 CLOUDINARY_API_KEY=your-cloudinary-api-key
+
 CLOUDINARY_API_SECRET=your-cloudinary-api-secret
 
 # Hugging Face (for AI generation)
