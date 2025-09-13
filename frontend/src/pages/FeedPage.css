@@ -1,4 +1,3 @@
-
 .feed-container {
   padding: 20px;
   max-width: 1200px;
@@ -13,10 +12,13 @@
 .feed-header h1 {
   color: var(--text-primary);
   margin-bottom: 10px;
+  font-size: 2.5rem;
+  font-weight: 700;
 }
 
 .feed-header p {
   color: var(--text-secondary);
+  font-size: 1.1rem;
 }
 
 .feed-grid {
@@ -31,6 +33,7 @@
   overflow: hidden;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+  border: 1px solid var(--border-color);
 }
 
 .feed-card:hover {
@@ -43,6 +46,7 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
 }
 
 .user-info {
@@ -53,11 +57,19 @@
 
 .user-avatar {
   font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-name {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
+  font-size: 0.95rem;
 }
 
 .post-time {
@@ -71,6 +83,7 @@
   height: 400px;
   overflow: hidden;
   cursor: pointer;
+  background: var(--bg-tertiary);
 }
 
 .feed-image-container.expanded {
@@ -110,6 +123,9 @@
 .view-full {
   color: white;
   font-weight: 500;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 16px;
+  border-radius: 20px;
 }
 
 .feed-card-content {
@@ -118,14 +134,16 @@
 
 .image-title {
   margin: 0 0 10px 0;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 .image-caption {
   margin: 0 0 15px 0;
   color: var(--text-secondary);
   line-height: 1.4;
+  font-size: 0.95rem;
 }
 
 .engagement-stats {
@@ -134,27 +152,34 @@
   margin-bottom: 15px;
   font-size: 0.9rem;
   color: var(--text-secondary);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .engagement-actions {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .like-btn, .comment-btn {
-  padding: 8px 15px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--bg-tertiary);
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .like-btn:hover, .comment-btn:hover {
   background: var(--accent);
   color: white;
+  transform: translateY(-1px);
 }
 
 .like-btn.liked {
@@ -162,73 +187,131 @@
   color: white;
 }
 
+/* Comments Section - Updated Styles */
 .comments-section {
-  border-top: 1px solid var(--border-color);
   padding-top: 15px;
 }
 
+.comments-list {
+  margin-bottom: 15px;
+}
+
 .comment {
-  margin-bottom: 10px;
-  padding: 8px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
+  margin-bottom: 8px;
+  padding: 8px 0;
   font-size: 0.9rem;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.comment strong {
-  color: var(--accent);
+.comment:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
-.view-more-comments {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-bottom: 10px;
-  cursor: pointer;
+.comment-author {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 5px;
 }
 
-.view-more-comments:hover {
-  color: var(--accent);
-}
-
-.comment-input {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.comment-input input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  background: var(--bg-tertiary);
+.comment-text {
   color: var(--text-primary);
 }
 
-.comment-input input:focus {
-  outline: none;
-  border-color: var(--accent);
+.view-more-comments-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 5px 0;
+  margin-top: 5px;
+  transition: color 0.2s ease;
 }
 
-.comment-input button {
-  padding: 8px 15px;
+.view-more-comments-btn:hover {
+  color: var(--accent);
+}
+
+/* Comment Input */
+.comment-input-container {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  align-items: center;
+}
+
+.comment-input-field {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.comment-input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+}
+
+.comment-input-field::placeholder {
+  color: var(--text-secondary);
+}
+
+.comment-submit-btn {
+  padding: 10px 20px;
   border: none;
   border-radius: 20px;
   background: var(--accent);
   color: white;
   cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+  white-space: nowrap;
 }
 
-.comment-input button:disabled {
-  background: var(--bg-tertiary);
+.comment-submit-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.comment-submit-btn:disabled {
+  background: var(--border-color);
   color: var(--text-secondary);
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading and empty states */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.no-images {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.no-images p {
+  font-size: 1.1rem;
+  margin: 0;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
   .feed-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
   
   .feed-image-container {
@@ -236,6 +319,40 @@
   }
   
   .engagement-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .feed-header h1 {
+    font-size: 2rem;
+  }
+  
+  .comment-input-container {
     flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .comment-submit-btn {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .feed-container {
+    padding: 15px;
+  }
+  
+  .feed-card-content {
+    padding: 15px;
+  }
+  
+  .image-title {
+    font-size: 1.1rem;
+  }
+  
+  .engagement-stats {
+    flex-direction: column;
+    gap: 5px;
   }
 }

@@ -91,9 +91,17 @@ class Comment(CommentBase):
         from_attributes = True
 
 class PublicImage(Image):
-    owner: Optional[User] = None
+    owner: User
     comments: List[Comment] = []
 
     class Config:
         from_attributes = True
+
+
+class AIImageGenerate(BaseModel):
+    prompt: str = Field(..., min_length=1, max_length=1000)
+    negative_prompt: Optional[str] = Field(None, max_length=500)
+    title: Optional[str] = Field(None, max_length=100)
+    caption: Optional[str] = Field(None, max_length=500)
+    privacy: str = "private"
 # [file content end]

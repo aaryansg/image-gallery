@@ -16,4 +16,6 @@ class Settings:
     CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
     CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
 
+    HUGGING_FACE_TOKEN: str = os.getenv("HUGGING_FACE_TOKEN", "")
+
 settings = Settings()

@@ -11,9 +11,14 @@ from .database import SessionLocal, engine, get_db
 # Import the images router correctly
 from .images import router as images_router
 
+app = FastAPI(title="Image Gallery API", version="0.1.0")
+
+
+
+
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Image Gallery API", version="0.1.0")
+
 
 # Get frontend URL from environment variable or use default
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -50,14 +55,31 @@ def read_users_me(current_user: schemas.User = Depends(auth.get_current_user)):
 # Make sure this line is at the end and uses the correct router variable
 app.include_router(images_router, prefix="/api", tags=["images"])
 
-# Serve React frontend in production
 if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PRODUCTION"):
-    # Mount static files
-    app.mount("/static", StaticFiles(directory="../frontend/build/static"), name="static")
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
     
-    # Serve index.html for all other routes
-    @app.get("/{full_path:path}")
-    async def serve_react_app(full_path: str):
-        if os.path.exists("../frontend/build/index.html"):
-            return FileResponse("../frontend/build/index.html")
-        return {"message": "React app not built yet"}
+    # Correct path for Docker container - use ./ NOT ../
+    build_path = "/app/frontend/build"
+    
+    # Debug: Check what directories exist
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Checking if build path exists: {build_path}")
+    if os.path.exists(build_path):
+        print(f"Build directory contents: {os.listdir(build_path)}")
+        static_path = f"{build_path}/static"
+        if os.path.exists(static_path):
+            app.mount("/static", StaticFiles(directory=static_path), name="static")
+        else:
+            print(f"Static directory not found: {static_path}")
+        
+        # Serve index.html for all other routes
+        @app.get("/{full_path:path}")
+        async def serve_react_app(full_path: str):
+            index_path = f"{build_path}/index.html"
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+            return {"message": "React app not built yet"}
+    else:
+        print(f"Warning: React build directory not found at {build_path}")
+        print(f"Current directory contents: {os.listdir('.')}")

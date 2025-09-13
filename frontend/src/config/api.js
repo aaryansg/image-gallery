@@ -1,6 +1,6 @@
 // src/config/api.js
 export const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? window.location.origin 
+  ? window.location.origin
   : 'http://localhost:8000';
 
 export const getAuthHeaders = () => {

@@ -1,12 +1,12 @@
-// [file name]: FeedPage.js
-// [file content begin]
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Layout/Header';
 import axios from 'axios';
 import './FeedPage.css';
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? window.location.origin 
+  : 'http://localhost:8000';
 
 const FeedPage = () => {
   const { currentUser, loading: authLoading } = useAuth();
@@ -15,7 +15,7 @@ const FeedPage = () => {
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState({});
   const [expandedImage, setExpandedImage] = useState(null);
-  const [error, setError] = useState('');
+  const [showAllComments, setShowAllComments] = useState({});
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -26,14 +26,14 @@ const FeedPage = () => {
   const fetchPublicImages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/feed`, { // Updated
-        headers: getAuthHeaders() // Use the helper function
+      const response = await axios.get(`${API_BASE_URL}/api/feed`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       setPublicImages(response.data);
-      setError('');
     } catch (error) {
       console.error('Error fetching public images:', error);
-      setError('Failed to load public images');
     } finally {
       setLoading(false);
     }
@@ -48,8 +48,10 @@ const FeedPage = () => {
   const handleLike = async (imageId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/like`, {}, { // Updated
-        headers: getAuthHeaders() // Use the helper function
+      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/like`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       if (response.data.success) {
@@ -67,23 +69,26 @@ const FeedPage = () => {
       }
     } catch (error) {
       console.error('Error liking image:', error);
-      setError('Failed to like image');
     }
   };
 
   const handleComment = async (imageId) => {
     const commentContent = commentText[imageId] || '';
     if (!commentContent.trim()) {
-      setError('Comment cannot be empty');
+      alert('Comment cannot be empty');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/comment`, { // Updated
-        content: commentContent
+      const response = await axios.post(`${API_BASE_URL}/api/images/${imageId}/comment`, {
+        content: commentContent,
+        image_id: imageId
       }, {
-        headers: getAuthHeaders() // Use the helper function
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (response.data) {
@@ -102,16 +107,13 @@ const FeedPage = () => {
         
         // Clear the comment input
         setCommentText(prev => ({ ...prev, [imageId]: '' }));
-        setError('');
       }
     } catch (error) {
       console.error('Error posting comment:', error);
       if (error.response?.status === 400) {
-        setError(error.response.data.detail || 'Invalid comment');
-      } else if (error.response?.status === 422) {
-        setError('Validation error. Please check your comment content.');
+        alert(error.response.data.detail || 'Invalid comment');
       } else {
-        setError('Error posting comment. Please try again.');
+        alert('Error posting comment. Please try again.');
       }
     }
   };
@@ -122,6 +124,20 @@ const FeedPage = () => {
     } else {
       setExpandedImage(imageId);
     }
+  };
+
+  const toggleShowAllComments = (imageId) => {
+    setShowAllComments(prev => ({
+      ...prev,
+      [imageId]: !prev[imageId]
+    }));
+  };
+
+  const getVisibleComments = (image) => {
+    if (showAllComments[image.id]) {
+      return image.comments || [];
+    }
+    return (image.comments || []).slice(-2); // Show last 2 comments
   };
 
   if (authLoading) {
@@ -140,15 +156,6 @@ const FeedPage = () => {
           <h1>Public Feed</h1>
           <p>Discover and engage with images shared by the community</p>
         </div>
-
-        {error && (
-          <div className="error-message">
-            {error}
-            <button onClick={() => setError('')} style={{marginLeft: '10px'}}>
-              Dismiss
-            </button>
-          </div>
-        )}
 
         {loading ? (
           <div className="loading">Loading public images...</div>
@@ -211,20 +218,31 @@ const FeedPage = () => {
                     </button>
                   </div>
                   
+                  {/* Comments Section - Updated to match the image */}
                   <div className="comments-section">
-                    {image.comments && image.comments.slice(0, 3).map((comment) => (
-                      <div key={comment.id} className="comment">
-                        <strong>{comment.user?.full_name || 'Unknown User'}:</strong> {comment.content}
-                      </div>
-                    ))}
-                    
-                    {image.comments && image.comments.length > 3 && (
-                      <div className="view-more-comments">
-                        View {image.comments.length - 3} more comments
+                    {/* Display comments */}
+                    {image.comments && image.comments.length > 0 && (
+                      <div className="comments-list">
+                        {getVisibleComments(image).map((comment) => (
+                          <div key={comment.id} className="comment">
+                            <span className="comment-author">{comment.user?.full_name || 'Unknown User'}:</span>
+                            <span className="comment-text">{comment.content}</span>
+                          </div>
+                        ))}
+                        
+                        {image.comments.length > 2 && (
+                          <button 
+                            className="view-more-comments-btn"
+                            onClick={() => toggleShowAllComments(image.id)}
+                          >
+                            {showAllComments[image.id] ? 'Show less' : `View all ${image.comments.length} comments`}
+                          </button>
+                        )}
                       </div>
                     )}
                     
-                    <div className="comment-input">
+                    {/* Comment Input */}
+                    <div className="comment-input-container">
                       <input
                         id={`comment-input-${image.id}`}
                         type="text"
@@ -240,10 +258,12 @@ const FeedPage = () => {
                           }
                         }}
                         maxLength={500}
+                        className="comment-input-field"
                       />
                       <button 
                         onClick={() => handleComment(image.id)}
                         disabled={!commentText[image.id] || !commentText[image.id].trim()}
+                        className="comment-submit-btn"
                       >
                         Post
                       </button>
@@ -260,4 +280,3 @@ const FeedPage = () => {
 };
 
 export default FeedPage;
-// [file content end]

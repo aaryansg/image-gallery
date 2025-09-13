@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage';
 import GalleryPage from './pages/GalleryPage';
 import FeedPage from './pages/FeedPage'; // Add this import
 import './App.css';
+import AIGenerationPage from './pages/AIGenerationPage'; // Add this import
 
 function App() {
   return (
@@ -22,7 +23,8 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
-            <Route path="/feed" element={<FeedPage />} /> {/* Add this route */}
+            <Route path="/feed" element={<FeedPage />} />
+            <Route path="/ai-generate" element={<AIGenerationPage />} /> {/* Add this route */}
           </Routes>
         </div>
       </Router>

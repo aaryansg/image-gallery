@@ -34,6 +34,7 @@ const Header = () => {
                 <Link to="/feed" className="nav-link"> {/* Add this link */}
                   Feed
                 </Link>
+                <Link to="/ai-generate" className="nav-link">AI Generate</Link>
                 <span className="nav-user">
                   Welcome, {currentUser.full_name}
                 </span>
